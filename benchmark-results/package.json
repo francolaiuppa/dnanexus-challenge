@@ -1,0 +1,16 @@
+{
+  "name": "benchmark-results",
+  "version": "1.0.0",
+  "private": true,
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "plot-chart.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "quickchart-js": "^3.1.3"
+  }
+}
