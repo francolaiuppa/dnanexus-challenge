@@ -6,7 +6,7 @@ This PR contains my solution to the challenge defined on `exercise.md`.
 
 My solution focuses on efficient handling of large files by creating a byte-offset index for fast random access, combined with performance benchmarking to validate the implementation.
 
-It takes about **30ms** per read line, as you can see in the graph below
+It takes about **23ms** per read line, as you can see in the graph below
 
 <img src="./benchmark-results/graph.png" alt="Benchmark Chart: Execution Time vs Line Numbers" width="500" />
 
@@ -88,12 +88,12 @@ It’s significantly smaller than the dataset itself (e.g., for a `4.7gB` datase
 
 #### Optimized Solution
 
-The solution uses `fs.promises.read` combined with a binary index file to efficiently retrieve lines from the dataset. The binary index stores the byte offsets for each line, indicating where each line starts and ends within the dataset. This allows the program to:  
+The solution uses `vmtouch` to page-cache the files and uses Node's `fs.promises.read` combined with a binary index file to efficiently retrieve lines from the dataset. The binary index stores the byte offsets for each line, indicating where each line starts and ends within the dataset. This allows the program to:  
 
 - Access the specific byte range of the dataset file directly, avoiding unnecessary disk reads.  
 - Minimize memory usage by avoiding the need to load the entire dataset or index into memory.  
 
-This approach ensures fast, consistent performance, with an average runtime of **30ms** per line retrieval for a 100M-line dataset. The method is scalable and well-suited for handling large files in short-lived processes.  
+This approach ensures fast, consistent performance, with an average runtime of **23ms** per line retrieval for a 100M-line dataset. The method is scalable and well-suited for handling large files in short-lived processes.  
 
 #### Future improvements
 
