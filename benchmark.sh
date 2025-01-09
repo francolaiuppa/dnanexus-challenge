@@ -26,6 +26,15 @@ if ! command -v jq &> /dev/null; then
   exit 1
 fi
 
+# Preload dataset and index into memory using vmtouch (if available)
+if command -v vmtouch &> /dev/null; then
+  echo "Preloading files into OS cache with vmtouch..."
+  vmtouch -vt "$DATASET" "$DATASET.idx"
+  echo "Preloading complete."
+else
+  echo "vmtouch is not installed. Skipping file preloading."
+fi
+
 # Run benchmark
 for (( i=1; i<=RUNS; i++ ))
 do
@@ -54,4 +63,3 @@ echo "Generating plot..."
 node ./benchmark-results/plot-graph.js 
 echo "Plot generated successfully"
 echo "Done"
-
