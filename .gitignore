@@ -1,3 +1,4 @@
+.DS_Store
 dataset.txt
 dataset.txt.idx
 benchmark-results/node_modules
