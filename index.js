@@ -1,6 +1,4 @@
-// read the file
-import { writeFile, createReadStream, existsSync } from 'node:fs';
-import { createInterface } from 'readline';
+import { promises as fs, createReadStream, existsSync } from 'node:fs';
 
 // generates an index file for faster retrieval calls
 function generateIndexFile(datasetFile) {
@@ -9,6 +7,7 @@ function generateIndexFile(datasetFile) {
     if (!existsSync(datasetFile)) {
       return reject(new Error(`The requested dataset "${datasetFile}" was not found.`));
     }
+
     const offsets = [];
     let offset = 0;
     const readStream = createReadStream(datasetFile, {
@@ -19,7 +18,7 @@ function generateIndexFile(datasetFile) {
 
     readStream.on('data', (chunk) => {
       leftover += chunk;
-      let lines = leftover.split('\n');
+      const lines = leftover.split('\n');
       leftover = lines.pop();
 
       lines.forEach((line) => {
@@ -28,70 +27,71 @@ function generateIndexFile(datasetFile) {
       });
     });
 
-    readStream.on('end', () => {
+    readStream.on('end', async () => {
       if (leftover) {
         offsets.push(offset);
       }
-
-      writeFile(indexFile, offsets.join('\n'), (err) => {
-        if (err) reject(err);
+    
+      try {
+        const fd = await fs.open(indexFile, 'w');
+        const buffer = Buffer.alloc(4); // Allocate a small buffer
+        for (const value of offsets) {
+          buffer.writeUInt32LE(value, 0);
+          await fd.write(buffer); // Write each offset incrementally
+        }
+        await fd.close();
         resolve();
-      });
+      } catch (err) {
+        reject(err);
+      }
     });
 
-    readStream.on('error', reject);
+    readStream.on('error', (err) => {
+      readStream.destroy();
+      reject(err);
+    });
   });
 }
 
 async function requestLineFromDatasetUsingOffsets(datasetFile, start, end) {
-  return new Promise((resolve, reject) => {
-    const readStream = createReadStream(datasetFile, {
-      encoding: 'utf-8',
-      start,
-      end
-    });
-    let result = '';
-    readStream.on('data', (chunk) => { result += chunk; });
-    readStream.on('end', () => resolve(result));
-    readStream.on('error', reject);
-  });
+  const fd = await fs.open(datasetFile, 'r'); // Open the dataset file
+  const buffer = Buffer.alloc(end - start + 1); // Allocate exact range size
+  try {
+    const { bytesRead } = await fd.read(buffer, 0, buffer.length, start); // Read specific range
+    return buffer.toString('utf-8', 0, bytesRead); // Convert buffer to string
+  } finally {
+    await fd.close(); // Ensure file descriptor is closed
+  }
 }
 
-// @TODO: improve this function to use binary offsets to
-// avoid depending on readline
 async function findOffsets(indexFile, lineNumber) {
-  return new Promise((resolve, reject) => {
-    if (typeof lineNumber !== 'number') {
-      return reject(new Error('ERROR: The requested line number is not a number'));
+  try {
+    const fd = await fs.open(indexFile, 'r');
+    const buffer = Buffer.alloc(8); // Read 8 bytes for start and end offsets
+    const position = (lineNumber - 1) * 4; // Each offset is 4 bytes
+
+    // Read the start offset
+    const { bytesRead: startBytes } = await fd.read(buffer, 0, 4, position);
+    if (startBytes === 0) {
+      throw new Error(`Line number ${lineNumber} exceeds the number of lines in the dataset.`);
     }
-    const readStream = createReadStream(indexFile);
-    const rl = createInterface({ input: readStream });
-    let currentLine = 0;
-    let startOffset = null;
-    let endOffset = null;
+    const startOffset = buffer.readUInt32LE(0);
 
-    rl.on('line', (line) => {
-      currentLine++;
-      if (currentLine === lineNumber) {
-        startOffset = Number(line);
-      }
-      if (currentLine === lineNumber + 1) {
-        endOffset = Number(line)-2; // prevent returning the 1st character of new line + newline char
-        rl.close(); // prevent continuing if we already found what we need
-      }
-    });
+    // Read the next offset for end position
+    const { bytesRead: endBytes } = await fd.read(buffer, 0, 4, position + 4);
+    const endOffset = endBytes > 0 ? buffer.readUInt32LE(0) - 1 : undefined; // Use undefined for EOF
 
-    rl.on('close', () => {
-      if (startOffset !== null) {
-        resolve({ startOffset, endOffset });
-      } else {
-        reject(new Error(`Line number ${lineNumber} not found in index.`));
-      }
-    });
+    if (endOffset === undefined && lineNumber > 1) {
+      throw new Error(`Line number ${lineNumber} exceeds the number of lines in the dataset.`);
+    }
 
-    rl.on('error', reject);
-  });
+    await fd.close();
+    return { startOffset, endOffset };
+  } catch (err) {
+    throw err;
+  }
 }
+
 
 function logVerbose(message) {
   const isVerbose = process.argv.includes('--verbose');
@@ -99,7 +99,6 @@ function logVerbose(message) {
 }
 
 async function main(datasetFile, lineNumber) {
-
   try {
     // generate the index if its missing
     const indexFile = `${datasetFile}.idx`;

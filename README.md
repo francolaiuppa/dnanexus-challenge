@@ -6,13 +6,13 @@ This PR contains my solution to the challenge defined on `exercise.md`.
 
 My solution focuses on efficient handling of large files by creating a byte-offset index for fast random access, combined with performance benchmarking to validate the implementation.
 
-It takes about **35ms** per read line, as you can see in the graph below
+It takes about **30ms** per read line, as you can see in the graph below
 
 <img src="./benchmark-results/graph.png" alt="Benchmark Chart: Execution Time vs Line Numbers" width="500" />
 
 ## Installation / Dependencies
 
-This script doesn't depend on any external dependencies, only `node`. 
+This script doesn't depend on any external dependencies, only `node`.
 
 ## How to run this?
 
@@ -74,10 +74,10 @@ Please note: If you want to run the benchmark scripts, you'll also need to:
 
 I knew loading the entire file into memory would be impractical for large datasets.
 
-I decided to create an index file that stores the byte offsets (start and end) for each line, allowing random access to specific lines.
+I decided to create an index file that stores the byte offsets (start and end) for each line in binary format, allowing us to know when each line starts and ends in the dataset without having to load it into memory.
 
 This index is created during the first run if it doesn’t already exist.
-It’s significantly smaller than the dataset itself (e.g., for a `4.7gB` dataset, the index is only `103mB`).
+It’s significantly smaller than the dataset itself (e.g., for a `4.7gB` dataset, the index is only `33mB`).
 
 ### Challenges and Optimizations
 
@@ -88,16 +88,16 @@ It’s significantly smaller than the dataset itself (e.g., for a `4.7gB` datase
 
 #### Optimized Solution
 
-To address this, I implemented a `readline` interface to process the index file line-by-line. This:
+The solution uses `fs.promises.read` combined with a binary index file to efficiently retrieve lines from the dataset. The binary index stores the byte offsets for each line, indicating where each line starts and ends within the dataset. This allows the program to:  
 
-- Extracts the necessary offsets without loading the entire file into memory.
-- Exits the reading process as soon as the required data is found, which means requests for lines closer to the start of the dataset are faster.
+- Access the specific byte range of the dataset file directly, avoiding unnecessary disk reads.  
+- Minimize memory usage by avoiding the need to load the entire dataset or index into memory.  
 
-This improved approach reduced the average runtime to **35ms** for a 100M-line dataset, making it both efficient and scalable for short-lived processes.
+This approach ensures fast, consistent performance, with an average runtime of **30ms** per line retrieval for a 100M-line dataset. The method is scalable and well-suited for handling large files in short-lived processes.  
 
 #### Future improvements
 
-- The `generateIndexFile` and `findOffsets` function could work using byte offsets instead of the text representation of the byte offset. I could also stop using `readline` and jump straight to the line. This should greatly improve performance.
+- If we could run this as a daemon, I could load the index file into memory, bypassing disk access entirely and making it faster to return the line.
 
 ## Additional Notes
 

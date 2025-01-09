@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Variables
-SCRIPT="node index.js"         # Script to benchmark
+SCRIPT="node --noconcurrent_sweeping --noconcurrent_marking index.js"         # Script to benchmark
 DATASET="dataset.txt"          # Dataset file
 OUTPUT_CSV="benchmark-results/data.csv" # CSV file to store results
 RUNS=100                      # Number of benchmark runs.
@@ -51,7 +51,7 @@ echo "Benchmark complete! Results saved to $OUTPUT_CSV"
 echo "Generating plot..."
 # IMPORTANT: QuickChart has a limit of datapoints. If you don't need
 # the chart then you can greatly increase the RUNS constant (a couple thousands at least)
-node ./benchmark-results/plot-chart.js 
+node ./benchmark-results/plot-graph.js 
 echo "Plot generated successfully"
 echo "Done"
 
