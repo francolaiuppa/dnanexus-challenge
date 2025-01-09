@@ -95,6 +95,10 @@ To address this, I implemented a `readline` interface to process the index file 
 
 This improved approach reduced the average runtime to **35ms** for a 100M-line dataset, making it both efficient and scalable for short-lived processes.
 
+#### Future improvements
+
+- The `generateIndexFile` and `findOffsets` function could work using byte offsets instead of the text representation of the byte offset. I could also stop using `readline` and jump straight to the line. This should greatly improve performance.
+
 ## Additional Notes
 
 - If you try to run the script but the index file doesn't match the dataset, you will get an `OUT_OF_RANGE` error with a nice error explanation.

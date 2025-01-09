@@ -57,6 +57,8 @@ async function requestLineFromDatasetUsingOffsets(datasetFile, start, end) {
   });
 }
 
+// @TODO: improve this function to use binary offsets to
+// avoid depending on readline
 async function findOffsets(indexFile, lineNumber) {
   return new Promise((resolve, reject) => {
     if (typeof lineNumber !== 'number') {
